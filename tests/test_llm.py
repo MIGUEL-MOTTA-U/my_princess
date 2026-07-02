@@ -84,6 +84,62 @@ def test_extract_json_without_object_raises():
         _extract_json("sin json aquí")
 
 
-def test_build_llm_client_rejects_unknown_provider():
-    with pytest.raises(ValueError, match="no soportado"):
-        build_llm_client("openai", "gpt-x")
+@pytest.mark.parametrize(
+    ("provider", "model", "expected"),
+    [
+        ("gemini", "gemini-2.5-flash", "gemini/gemini-2.5-flash"),
+        ("openai", "gpt-4o-mini", "openai/gpt-4o-mini"),
+        ("anthropic", "claude-opus-4-8", "anthropic/claude-opus-4-8"),
+        ("Ollama", " llama3.1 ", "ollama/llama3.1"),
+    ],
+)
+def test_build_llm_client_composes_litellm_model(provider, model, expected):
+    client = build_llm_client(provider, model)
+    assert client.model == expected
+    assert client.api_base is None
+
+
+def test_build_llm_client_passes_api_base():
+    client = build_llm_client("ollama", "llama3.1", api_base="http://nas:11434")
+    assert client.api_base == "http://nas:11434"
+
+
+@pytest.mark.parametrize(("provider", "model"), [("", "x"), ("gemini", ""), ("  ", "x")])
+def test_build_llm_client_rejects_empty_values(provider, model):
+    with pytest.raises(ValueError, match="no pueden estar vacios"):
+        build_llm_client(provider, model)
+
+
+def test_litellm_client_calls_completion(monkeypatch):
+    import litellm
+    from unittest.mock import MagicMock
+
+    from my_princess.llm import LiteLLMClient
+
+    fake_response = MagicMock()
+    fake_response.choices[0].message.content = "respuesta"
+    completion = MagicMock(return_value=fake_response)
+    monkeypatch.setattr(litellm, "completion", completion)
+
+    client = LiteLLMClient("gemini/gemini-2.5-flash", api_base=None)
+    assert client.complete("sys", "user") == "respuesta"
+
+    kwargs = completion.call_args.kwargs
+    assert kwargs["model"] == "gemini/gemini-2.5-flash"
+    assert kwargs["messages"] == [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "user"},
+    ]
+
+
+def test_litellm_client_handles_none_content(monkeypatch):
+    import litellm
+    from unittest.mock import MagicMock
+
+    from my_princess.llm import LiteLLMClient
+
+    fake_response = MagicMock()
+    fake_response.choices[0].message.content = None
+    monkeypatch.setattr(litellm, "completion", MagicMock(return_value=fake_response))
+
+    assert LiteLLMClient("openai/gpt-4o-mini").complete("s", "u") == ""

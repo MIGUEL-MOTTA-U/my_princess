@@ -1,9 +1,11 @@
-"""Estructuracion de metadata via LLM.
+"""Estructuracion de metadata via LLM, agnostica al proveedor.
 
-El prompt y el parseo son agnosticos al proveedor: cualquier objeto con un
-metodo `complete(system, user) -> str` sirve como cliente. La demo incluye
-la implementacion para Anthropic (unico proveedor con API key disponible);
-los tests usan un cliente falso.
+El contrato con el pipeline es el protocolo `LLMClient`
+(`complete(system, user) -> str`). La implementacion incluida usa LiteLLM,
+que expone una interfaz unica sobre Gemini, OpenAI, Anthropic, Ollama y
+decenas de proveedores mas: el proveedor y el modelo se eligen por
+configuracion (`MP_LLM_PROVIDER` / `MP_LLM_MODEL`) sin tocar codigo.
+Los tests usan un cliente falso.
 """
 from __future__ import annotations
 
@@ -62,33 +64,45 @@ class LLMClient(Protocol):
     def complete(self, system: str, user: str) -> str: ...
 
 
-class AnthropicClient:
-    """Implementacion para la API de Anthropic (SDK oficial)."""
+class LiteLLMClient:
+    """Cliente unico para cualquier proveedor soportado por LiteLLM.
 
-    def __init__(self, model: str = "claude-opus-4-8"):
-        import anthropic
+    `model` usa la notacion de LiteLLM: "gemini/gemini-2.5-flash",
+    "openai/gpt-4o-mini", "anthropic/claude-opus-4-8", "ollama/llama3.1"...
+    La API key se toma de la variable de entorno estandar del proveedor
+    (GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY; Ollama no usa key).
+    """
 
+    def __init__(self, model: str, api_base: str | None = None):
         self.model = model
-        self._client = anthropic.Anthropic()
+        self.api_base = api_base
 
-    def complete(self, system: str, user: str) -> str:  # pragma: no cover - red real
-        response = self._client.messages.create(
+    def complete(self, system: str, user: str) -> str:
+        import litellm
+
+        response = litellm.completion(
             model=self.model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
             max_tokens=2048,
-            system=system,
-            messages=[{"role": "user", "content": user}],
+            api_base=self.api_base,
         )
-        if response.stop_reason == "refusal":
-            raise RuntimeError("el modelo rechazo la solicitud (stop_reason=refusal)")
-        return "".join(
-            block.text for block in response.content if block.type == "text"
-        )
+        return response.choices[0].message.content or ""
 
 
-def build_llm_client(provider: str, model: str) -> LLMClient:
-    if provider == "anthropic":
-        return AnthropicClient(model=model)
-    raise ValueError(f"Proveedor LLM no soportado: {provider}")
+def build_llm_client(
+    provider: str, model: str, api_base: str | None = None
+) -> LLMClient:
+    """Compone el identificador `proveedor/modelo` de LiteLLM. No hay
+    whitelist: cualquier proveedor que LiteLLM soporte funciona; uno
+    invalido falla en la primera llamada con el error del propio LiteLLM."""
+    provider = provider.strip().lower()
+    model = model.strip()
+    if not provider or not model:
+        raise ValueError("MP_LLM_PROVIDER y MP_LLM_MODEL no pueden estar vacios")
+    return LiteLLMClient(f"{provider}/{model}", api_base=api_base)
 
 
 def _extract_json(raw: str) -> dict:

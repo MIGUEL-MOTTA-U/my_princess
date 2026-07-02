@@ -30,10 +30,18 @@ para no ingerir archivos aún en copia.
   `DUPLICATE` si **otro** asset ya tiene el mismo hash (copia del mismo
   contenido con otro nombre) o el mismo `source_path`.
 
-## LLM: Anthropic como implementación, interfaz agnóstica
-No se especificó proveedor; se eligió Anthropic (`claude-opus-4-8` por
-defecto, configurable con `MP_LLM_MODEL`). El contrato con el resto del
-sistema es el protocolo `LLMClient` (`complete(system, user) -> str`):
+## LLM: agnóstico al proveedor vía LiteLLM
+Requisito explícito: el modelo debe poder ser de Gemini, Ollama, OpenAI,
+Anthropic, etc. En lugar de escribir un cliente por proveedor se usa
+**LiteLLM**, una librería probada que expone la misma interfaz sobre ~100
+proveedores; `build_llm_client` compone el identificador
+`{MP_LLM_PROVIDER}/{MP_LLM_MODEL}` sin whitelist (cualquier proveedor que
+LiteLLM soporte funciona) y la API key se toma de la variable estándar de
+cada proveedor (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`;
+Ollama no usa key y admite endpoint custom vía `MP_LLM_API_BASE`).
+El default es Gemini (`gemini-2.5-flash`), el proveedor con el que se
+prueba la demo. El contrato con el resto del sistema sigue siendo el
+protocolo `LLMClient` (`complete(system, user) -> str`):
 - el prompt pide JSON puro y documenta el criterio de `confidence_score`
   (longitud/integridad de la transcripción, ambigüedad temática,
   confiabilidad de nombres propios, ruido);
@@ -41,10 +49,9 @@ sistema es el protocolo `LLMClient` (`complete(system, user) -> str`):
   schema estricto;
 - si no valida, se reintenta **una vez** con un prompt de corrección que
   incluye el error; si vuelve a fallar → `NEEDS_REVIEW`.
-Agregar otro proveedor = una clase nueva con `complete()` y una rama en
-`build_llm_client`. Los tests usan un cliente falso (dos implementaciones
-reales del protocolo: la de Anthropic y la fake, lo que justifica la
-interfaz).
+Cambiar de proveedor = cambiar dos variables de entorno, sin tocar código.
+Los tests usan un cliente falso (dos implementaciones reales del
+protocolo: la de LiteLLM y la fake, lo que justifica la interfaz).
 
 ## Errores: transporte ≠ schema
 Un error de red/API en la estructuración es transitorio → se reintenta

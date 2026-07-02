@@ -50,3 +50,13 @@ automáticamente con el mismo formato.
   PENDING_VALIDATION + JSON de salida + logs por transición.
 - Suite completa: 48 tests, cobertura 98% (objetivo ≥85%). Únicas líneas
   excluidas: carga real del modelo whisper y llamada real a Anthropic.
+
+## 2026-07-02T00:00:00Z — implementación / fase 7 (LLM multi-proveedor)
+- Requisito nuevo: el LLM debe ser agnóstico al proveedor (Gemini, Ollama,
+  OpenAI, Anthropic...). Se reemplazó el cliente Anthropic directo por
+  `LiteLLMClient` (librería LiteLLM, interfaz única multi-proveedor).
+- Proveedor/modelo por configuración: `MP_LLM_PROVIDER` + `MP_LLM_MODEL`
+  (default: gemini / gemini-2.5-flash) + `MP_LLM_API_BASE` opcional para
+  endpoints custom (Ollama remoto). Sin whitelist de proveedores.
+- El prompt, el parseo y la validación no cambiaron: ya eran agnósticos.
+- Suite: 57 tests, cobertura 99%.

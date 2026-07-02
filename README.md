@@ -22,13 +22,14 @@ watchfolder/  ──▶ Watcher (polling, tamaño estable, .mp4)
 - **Transcripción**: faster-whisper (modelo configurable, default `base`)
 - **Audio**: ffmpeg (PATH o binario empaquetado de `imageio-ffmpeg`)
 - **Persistencia**: SQLite (`assets` + `transform_logs`); ver `DECISIONS.md`
-- **LLM**: Anthropic por defecto, detrás de una interfaz intercambiable
+- **LLM**: agnóstico al proveedor vía LiteLLM (Gemini, OpenAI, Anthropic, Ollama…)
 - **Bitácora**: `ai_notes.md` (una entrada por evento) + `transform_logs`
 
 ## Requisitos
 
 - Python 3.11+ (probado con 3.12)
-- API key de Anthropic (`ANTHROPIC_API_KEY`) para la estructuración de metadata
+- Una API key del proveedor LLM elegido (Gemini por defecto: `GEMINI_API_KEY`);
+  con Ollama local no se necesita key
 - Nada más: ffmpeg viene empaquetado y SQLite es parte de Python
 
 ## Instalación
@@ -43,7 +44,6 @@ pip install -e ".[dev]"
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Requerida para la llamada real al LLM |
 | `MP_WATCH_DIR` | `watchfolder` | Carpeta vigilada |
 | `MP_OUTPUT_DIR` | `output` | Carpeta de archivos de salida |
 | `MP_DB_PATH` | `data/my_princess.db` | Base SQLite |
@@ -51,13 +51,30 @@ pip install -e ".[dev]"
 | `MP_POLL_INTERVAL_SECONDS` | `2` | Intervalo de polling |
 | `MP_MAX_RETRIES` | `3` | Reintentos por etapa antes de FAILED |
 | `MP_WHISPER_MODEL` | `base` | Modelo faster-whisper (`tiny`/`base`/`small`…) |
-| `MP_LLM_PROVIDER` | `anthropic` | Proveedor LLM |
-| `MP_LLM_MODEL` | `claude-opus-4-8` | Modelo LLM |
+| `MP_LLM_PROVIDER` | `gemini` | Proveedor LLM (cualquiera soportado por LiteLLM) |
+| `MP_LLM_MODEL` | `gemini-2.5-flash` | Modelo del proveedor |
+| `MP_LLM_API_BASE` | — | Endpoint custom (p. ej. Ollama en otro host) |
+
+La API key va en la variable estándar de cada proveedor:
+
+| Proveedor (`MP_LLM_PROVIDER`) | Key | Ejemplo de `MP_LLM_MODEL` |
+|---|---|---|
+| `gemini` | `GEMINI_API_KEY` | `gemini-2.5-flash` |
+| `openai` | `OPENAI_API_KEY` | `gpt-4o-mini` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-4-8` |
+| `ollama` | no necesita | `llama3.1` (local en `:11434`) |
 
 ## Ejecutar la demo
 
 ```powershell
-$env:ANTHROPIC_API_KEY = "sk-ant-..."
+$env:GEMINI_API_KEY = "AIza..."      # proveedor por defecto: Gemini
+python -m my_princess.main
+```
+
+Para cambiar de proveedor basta con las variables de entorno, sin tocar código:
+
+```powershell
+$env:MP_LLM_PROVIDER = "ollama"; $env:MP_LLM_MODEL = "llama3.1"
 python -m my_princess.main
 ```
 

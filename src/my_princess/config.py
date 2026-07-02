@@ -21,8 +21,12 @@ class Settings:
     )
     max_retries: int = field(default_factory=lambda: int(_env("MP_MAX_RETRIES", "3")))
     whisper_model: str = field(default_factory=lambda: _env("MP_WHISPER_MODEL", "base"))
-    llm_provider: str = field(default_factory=lambda: _env("MP_LLM_PROVIDER", "anthropic"))
-    llm_model: str = field(default_factory=lambda: _env("MP_LLM_MODEL", "claude-opus-4-8"))
+    llm_provider: str = field(default_factory=lambda: _env("MP_LLM_PROVIDER", "gemini"))
+    llm_model: str = field(default_factory=lambda: _env("MP_LLM_MODEL", "gemini-2.5-flash"))
+    # opcional: endpoint custom (p. ej. Ollama en otro host); vacio = default
+    llm_api_base: str | None = field(
+        default_factory=lambda: _env("MP_LLM_API_BASE", "") or None
+    )
 
     def ensure_dirs(self) -> None:
         self.watch_dir.mkdir(parents=True, exist_ok=True)

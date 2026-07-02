@@ -25,7 +25,9 @@ def build_components(settings: Settings, llm: LLMClient | None = None):
     notes = AINotes(settings.ai_notes_path)
     watcher = Watcher(settings.watch_dir, db, notes)
     if llm is None:
-        llm = build_llm_client(settings.llm_provider, settings.llm_model)
+        llm = build_llm_client(
+            settings.llm_provider, settings.llm_model, api_base=settings.llm_api_base
+        )
     transcriber = Transcriber(settings.whisper_model)
     pipeline = Pipeline(db, notes, transcriber, llm, settings)
     return db, notes, watcher, pipeline

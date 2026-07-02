@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2",
     "pydantic>=2.7",
-    "anthropic>=0.40",
+    "litellm>=1.50",
     "imageio-ffmpeg>=0.5",
     "faster-whisper>=1.0",
 ]
