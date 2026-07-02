@@ -17,9 +17,10 @@ cualquier excepcion residual y marca el asset como FAILED.
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import TypedDict
 
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, START, StateGraph
 
 from .audio import extract_audio
 from .config import Settings
@@ -63,8 +64,10 @@ class Pipeline:
         graph.add_node("structure", self._structure)
         graph.add_node("write_output", self._write_output)
 
-        graph.set_entry_point("dedupe")
-        continue_or_end = lambda state: END if state.get("final_status") else "continue"  # noqa: E731
+        def continue_or_end(state: PipelineState) -> str:
+            return END if state.get("final_status") else "continue"
+
+        graph.add_edge(START, "dedupe")
         graph.add_conditional_edges(
             "dedupe", continue_or_end, {END: END, "continue": "transcribe"}
         )
@@ -165,6 +168,8 @@ class Pipeline:
             try:
                 wav_path = extract_audio(asset["source_path"], self.audio_dir)
                 result = self.transcriber.transcribe(wav_path)
+                # el WAV intermedio ya no se necesita; evita acumular disco
+                Path(wav_path).unlink(missing_ok=True)
                 self.db.update_asset(
                     asset_id,
                     status=AssetStatus.TRANSCRIBED,

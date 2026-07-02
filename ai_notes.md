@@ -65,3 +65,24 @@ automáticamente con el mismo formato.
 - `.env.example` con todas las variables documentadas; `python-dotenv`
   carga `.env` en el arranque del CLI (las variables ya exportadas en la
   shell tienen prioridad). `.env` ya estaba cubierto por .gitignore.
+
+## 2026-07-02T00:00:00Z — implementación / fase 9 (respuesta a AUDITORIA.md)
+- SEC-001 verificado: `.env` NUNCA fue commiteado (historial de git vacío
+  para esa ruta); solo `.env.example`, sin secretos. No hay key expuesta
+  y no se requiere revocación.
+- Aplicados (bajo costo, sin cambiar flujo ni alcance): whitelist de
+  columnas en `update_asset` (DB-001/CODE-002) + test; borrado del WAV
+  intermedio tras transcripción exitosa (DISC-001); lambda a `def` y
+  `add_edge(START, ...)` en el grafo (CODE-001 + compatibilidad LangGraph,
+  pin `>=1,<2`); aserción explícita en test_watcher (TEST-001); nota de
+  VC++ Redistributable y tabla de error_codes en README (DOC-001/DOC-002);
+  `requirements.txt` congelado con pip freeze (DEP-001).
+- Descartados por alcance de demo: pool de conexiones y concurrencia,
+  tipos de dominio en db.py, validación de rangos en Settings, rotación
+  de ai_notes, device GPU configurable.
+- CODE-003 revisado y sin cambio: tras `dedupe` el asset sigue en
+  DETECTED (el nodo no cambia estado si no hay duplicado), así que
+  DETECTED a TRANSCRIBING es la transición real.
+- CFG-001 sin cambio: el `.env` del usuario solo necesita la key; el
+  resto opera por defaults documentados en `.env.example`.
+- Suite: 58 tests, cobertura 99%.

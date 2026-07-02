@@ -30,6 +30,8 @@ watchfolder/  ──▶ Watcher (polling, tamaño estable, .mp4)
 - Python 3.11+ (probado con 3.12)
 - Una API key del proveedor LLM elegido (Gemini por defecto: `GEMINI_API_KEY`);
   con Ollama local no se necesita key
+- En Windows: [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+  (lo requiere `ctranslate2`, el motor de faster-whisper; suele estar ya instalado)
 - Nada más: ffmpeg viene empaquetado y SQLite es parte de Python
 
 ## Instalación
@@ -39,6 +41,10 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1          # Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
 ```
+
+`pyproject.toml` es la fuente de verdad de las dependencias;
+`requirements.txt` es un snapshot congelado (`pip freeze`) para
+instalaciones reproducibles: `pip install -r requirements.txt`.
 
 ## Configuración
 
@@ -107,6 +113,16 @@ python -c "import sqlite3; [print(dict(r)) for r in sqlite3.connect('data/my_pri
 ```
 
 `python -m my_princess.main --cycles 5` ejecuta 5 ciclos de escaneo y termina.
+
+## Códigos de error (`assets.error_code`)
+
+| Código | Etapa | Significado |
+|---|---|---|
+| `FILE_ACCESS_ERROR` | dedupe | El archivo no se pudo leer para calcular su hash |
+| `TRANSCRIPTION_ERROR: <tipo>` | transcription | Falló ffmpeg o faster-whisper (se reintenta hasta `MP_MAX_RETRIES`) |
+| `LLM_TRANSPORT_ERROR: <tipo>` | structuring | Error de red/API del proveedor LLM (se reintenta) |
+| `LLM_SCHEMA_VALIDATION_FAILED: <detalle>` | structuring | La respuesta del LLM no validó contra el schema tras el reintento de corrección → `NEEDS_REVIEW` |
+| `UNHANDLED_ERROR: <tipo>` | pipeline | Excepción no prevista; el asset queda `FAILED` sin tumbar el loop |
 
 ## Tests y cobertura
 

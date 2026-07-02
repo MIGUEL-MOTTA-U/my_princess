@@ -1,4 +1,6 @@
 """Tests de la capa de persistencia (assets + transform_logs)."""
+import pytest
+
 from my_princess.models import AssetStatus
 
 
@@ -30,6 +32,12 @@ def test_update_asset_serializes_json_and_enum(db):
     assert asset["tags"] == ["news", "politics", "colombia"]
     assert asset["staff"] == ["Ana Pérez"]
     assert asset["confidence_score"] == 0.9
+
+
+def test_update_asset_rejects_unknown_columns(db):
+    asset_id = db.create_asset("a.mp4")
+    with pytest.raises(ValueError, match="Columnas desconocidas"):
+        db.update_asset(asset_id, transcritp="typo")  # typo intencional
 
 
 def test_update_asset_with_no_fields_is_noop(db):

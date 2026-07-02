@@ -59,6 +59,16 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# columnas actualizables de `assets`; un typo en update_asset debe fallar
+# ruidosamente en vez de actualizar nada en silencio
+_ASSET_COLUMNS = frozenset({
+    "source_path", "title", "transcript", "summary_short", "summary_long",
+    "tags", "staff", "confidence_score", "status", "validation_notes",
+    "approved_by", "approved_at", "published_at", "error_code",
+    "retry_count", "duration_minutes", "category", "file_hash",
+})
+
+
 class Database:
     """Acceso a datos. Una instancia por proceso; conexion por operacion no es
     necesaria en la demo (un solo hilo procesa el pipeline)."""
@@ -96,6 +106,9 @@ class Database:
     def update_asset(self, asset_id: str, **fields: Any) -> None:
         if not fields:
             return
+        unknown = set(fields) - _ASSET_COLUMNS
+        if unknown:
+            raise ValueError(f"Columnas desconocidas en update_asset: {sorted(unknown)}")
         serialized: dict[str, Any] = {}
         for key, value in fields.items():
             if key in ("tags", "staff") and value is not None:

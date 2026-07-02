@@ -31,7 +31,7 @@ def test_growing_file_is_not_registered(tmp_path, db):
     watcher.scan()
     target.write_bytes(b"a" * 20)  # sigue creciendo
     assert watcher.scan() == []
-    assert watcher.scan() != []  # ya estable
+    assert len(watcher.scan()) == 1  # ya estable
 
 
 def test_non_mp4_files_ignored(tmp_path, db):
