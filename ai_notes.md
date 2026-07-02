@@ -60,3 +60,8 @@ automáticamente con el mismo formato.
   endpoints custom (Ollama remoto). Sin whitelist de proveedores.
 - El prompt, el parseo y la validación no cambiaron: ya eran agnósticos.
 - Suite: 57 tests, cobertura 99%.
+
+## 2026-07-02T00:00:00Z — implementación / fase 8 (.env)
+- `.env.example` con todas las variables documentadas; `python-dotenv`
+  carga `.env` en el arranque del CLI (las variables ya exportadas en la
+  shell tienen prioridad). `.env` ya estaba cubierto por .gitignore.

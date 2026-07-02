@@ -56,6 +56,12 @@ def run(settings: Settings, cycles: int | None = None, llm: LLMClient | None = N
 
 
 def main() -> None:  # pragma: no cover - CLI delgado
+    # carga .env del directorio de trabajo (si existe) antes de leer Settings;
+    # las variables ya presentes en el entorno tienen prioridad
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     parser = argparse.ArgumentParser(description="Pipeline de documentalizacion")
     parser.add_argument("--cycles", type=int, default=None,
                         help="numero de ciclos de escaneo (default: infinito)")

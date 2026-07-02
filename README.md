@@ -40,7 +40,18 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-## Variables de entorno
+## Configuración
+
+Toda la configuración es por variables de entorno. La forma recomendada es
+un archivo `.env` en la raíz del proyecto (se carga automáticamente al
+arrancar; está en `.gitignore`, así que las keys no se commitean):
+
+```powershell
+Copy-Item .env.example .env    # Linux/macOS: cp .env.example .env
+# edita .env y pon tu API key
+```
+
+Las variables ya exportadas en la shell tienen prioridad sobre `.env`.
 
 | Variable | Default | Descripción |
 |---|---|---|
@@ -64,18 +75,21 @@ La API key va en la variable estándar de cada proveedor:
 | `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-4-8` |
 | `ollama` | no necesita | `llama3.1` (local en `:11434`) |
 
+`MP_LLM_PROVIDER` acepta cualquier proveedor soportado por LiteLLM
+(Groq, Mistral, Azure…), no solo los de la tabla.
+
 ## Ejecutar la demo
 
 ```powershell
-$env:GEMINI_API_KEY = "AIza..."      # proveedor por defecto: Gemini
+# .env con GEMINI_API_KEY ya configurado (ver sección Configuración)
 python -m my_princess.main
 ```
 
-Para cambiar de proveedor basta con las variables de entorno, sin tocar código:
+Para cambiar de proveedor basta con editar el `.env`, sin tocar código:
 
-```powershell
-$env:MP_LLM_PROVIDER = "ollama"; $env:MP_LLM_MODEL = "llama3.1"
-python -m my_princess.main
+```dotenv
+MP_LLM_PROVIDER=ollama
+MP_LLM_MODEL=llama3.1
 ```
 
 Copia un `.mp4` en `watchfolder/`. En pocos segundos verás:
