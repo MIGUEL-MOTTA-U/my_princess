@@ -195,6 +195,20 @@ def test_confidence_threshold_is_configurable(mock_extract, db, settings, transc
     assert not (settings.approved_dir / f"{asset_id}.json").exists()
 
 
+@patch("my_princess.graph.extract_audio", return_value="audio.wav")
+def test_dynamic_threshold_from_db_overrides_env_default(mock_extract, db, settings, transcriber_ok, tmp_path):
+    # el default (settings) aprobaría con 0.8, pero la config dinámica manda
+    db.set_config_value("confidence_threshold", 0.95)
+    pipeline = build_pipeline(db, settings, transcriber_ok, FakeLLM([json.dumps(VALID_METADATA)]))
+    asset_id = make_asset(db, tmp_path)
+
+    pipeline.process_asset(asset_id)
+
+    assert (settings.output_dir / f"{asset_id}.json").exists()
+    assert not (settings.approved_dir / f"{asset_id}.json").exists()
+    assert "umbral 0.95" in db.get_asset(asset_id)["validation_notes"]
+
+
 def test_missing_source_file_fails_cleanly(db, settings, transcriber_ok, tmp_path):
     pipeline = build_pipeline(db, settings, transcriber_ok, FakeLLM([]))
     asset_id = db.create_asset(str(tmp_path / "ghost.mp4"))

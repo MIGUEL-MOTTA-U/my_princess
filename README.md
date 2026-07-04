@@ -74,7 +74,7 @@ Las variables ya exportadas en la shell tienen prioridad sobre `.env`.
 | `MP_WATCH_DIR` | `watchfolder` | Carpeta vigilada |
 | `MP_OUTPUT_DIR` | `output` | Salida estándar (revisión manual completa) |
 | `MP_APPROVED_DIR` | `approved` | Salida cuando el agente aprueba por confianza |
-| `MP_CONFIDENCE_THRESHOLD` | `0.8` | Umbral de triage: `confidence_score >= umbral` → `approved/` |
+| `MP_CONFIDENCE_THRESHOLD` | `0.8` | Umbral de triage **inicial**; en runtime se cambia vía `PUT /api/v1/config` (el valor dinámico tiene prioridad) |
 | `MP_WORK_DIR` | `data` | Directorio de trabajo (WAV temporales) |
 | `MP_AI_NOTES_PATH` | `ai_notes.md` | Bitácora legible |
 | `MP_POLL_INTERVAL_SECONDS` | `2` | Intervalo de polling |
@@ -96,10 +96,17 @@ La API key va en la variable estándar de cada proveedor:
 `MP_LLM_PROVIDER` acepta cualquier proveedor soportado por LiteLLM
 (Groq, Mistral, Azure…), no solo los de la tabla.
 
-## Ejecutar la demo
+## Ejecución
+
+El proyecto son dos procesos independientes que comparten MongoDB y las
+carpetas de trabajo: el **pipeline** (procesa los videos del watchfolder) y
+el **servidor API** (expone todo al front por REST). Puedes correr solo el
+pipeline o ambos. Requisitos previos en los dos casos: Mongo arriba
+(`docker compose up -d`) y `.env` configurado (ver sección Configuración).
+
+### Pipeline (demo CLI)
 
 ```powershell
-# .env con GEMINI_API_KEY ya configurado (ver sección Configuración)
 python -m my_princess.main
 ```
 
@@ -135,6 +142,50 @@ docker exec my_princess_mongo mongosh my_princess --quiet --eval "db.assets.find
 ```
 
 `python -m my_princess.main --cycles 5` ejecuta 5 ciclos de escaneo y termina.
+
+### Servidor (API REST)
+
+En otra terminal, con el mismo entorno virtual activado:
+
+```powershell
+uvicorn my_princess.api.app:create_app --factory --port 8000
+```
+
+- La API queda en `http://localhost:8000/api/v1`; verifica con
+  `GET /api/v1/health` o abre el Swagger UI en
+  [`http://localhost:8000/docs`](http://localhost:8000/docs).
+- El servidor no procesa videos: sube archivos al watchfolder y consulta
+  estados/salidas. Para que los videos avancen, el pipeline debe estar
+  corriendo en paralelo (terminal 1).
+- Flags útiles de uvicorn: `--reload` (autorecarga en desarrollo) y
+  `--host 0.0.0.0` (exponerlo en la red local).
+
+## API para el frontend
+
+La capa REST expone el pipeline a clientes de UI (carga de archivos,
+consulta de estados, trazabilidad y configuración del agente). Cómo
+arrancarla: ver **Ejecución → Servidor (API REST)**.
+
+**Documentación automática para el cliente front**: Swagger UI en
+[`http://localhost:8000/docs`](http://localhost:8000/docs) (interactiva) y
+ReDoc en `/redoc`; el schema OpenAPI está en `/openapi.json`.
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/api/v1/videos` | Sube un `.mp4` al watchfolder (multipart). `400` si no es mp4, `409` si el nombre ya existe |
+| `GET` | `/api/v1/assets` | Lista paginada de assets; filtro `?status=` (enum del pipeline) |
+| `GET` | `/api/v1/assets/{id}` | Detalle completo: transcripción, metadata, `validation_notes` |
+| `GET` | `/api/v1/assets/{id}/logs` | Trazabilidad del asset (transiciones de `transform_logs`) |
+| `GET` | `/api/v1/logs` | Feed global de trazabilidad, más reciente primero |
+| `GET` | `/api/v1/outputs/{folder}` | Archivos en `output/` o `approved/` (folder = `output` \| `approved`) |
+| `GET` | `/api/v1/outputs/{folder}/{id}` | Contenido JSON de la salida de un asset |
+| `GET` | `/api/v1/config` | Configuración actual del agente (umbral + origen) |
+| `PUT` | `/api/v1/config` | Cambia el umbral de confianza **en caliente** (0–1); el pipeline lo aplica en el siguiente asset |
+| `GET` | `/api/v1/health` | Estado del servicio y de la base |
+
+Todas las listas usan el mismo envoltorio de paginación:
+`{items, page, size, total_items, total_pages}` con `?page=` (1-based) y
+`?size=` (máx. 100). CORS está abierto para desarrollo del front.
 
 ## Códigos de error (`assets.error_code`)
 
@@ -175,6 +226,12 @@ src/my_princess/
   output.py       # JSON de salida por asset
   graph.py        # grafo LangGraph
   main.py         # loop de polling (CLI)
+  api/            # capa REST para el front (FastAPI)
+    app.py          #   composition root (create_app)
+    controllers.py  #   routers HTTP (verbos, códigos, validación)
+    services.py     #   lógica de aplicación (paginación, archivos, config)
+    repositories.py #   patrón repository sobre Database
+    schemas.py      #   contratos pydantic → OpenAPI
 tests/            # unitarios por módulo + e2e
 docs/graph.md     # diagrama y documentación del grafo
 DECISIONS.md      # decisiones técnicas justificadas

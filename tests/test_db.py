@@ -77,6 +77,40 @@ def test_no_duplicate_returns_none(db):
     assert db.find_duplicate(asset_id, "solo.mp4", "hash-x") is None
 
 
+def test_config_value_roundtrip_and_default(db):
+    assert db.get_config_value("confidence_threshold", 0.8) == 0.8
+    db.set_config_value("confidence_threshold", 0.92)
+    assert db.get_config_value("confidence_threshold", 0.8) == 0.92
+    db.set_config_value("confidence_threshold", 0.5)  # upsert sobreescribe
+    assert db.get_config_value("confidence_threshold") == 0.5
+
+
+def test_list_assets_pagination_and_status_filter(db):
+    ids = [db.create_asset(f"v{i}.mp4") for i in range(5)]
+    db.update_asset(ids[0], status="FAILED")
+
+    page1 = db.list_assets(skip=0, limit=2)
+    page2 = db.list_assets(skip=2, limit=2)
+    assert len(page1) == 2 and len(page2) == 2
+    assert {a["id_asset"] for a in page1}.isdisjoint({a["id_asset"] for a in page2})
+    assert db.count_assets() == 5
+    assert db.count_assets(status="FAILED") == 1
+    assert db.list_assets(status="FAILED")[0]["id_asset"] == ids[0]
+
+
+def test_list_logs_global_and_by_asset(db):
+    a1 = db.create_asset("a.mp4")
+    a2 = db.create_asset("b.mp4")
+    db.log_transition(a1, "detection", None, AssetStatus.DETECTED)
+    db.log_transition(a2, "detection", None, AssetStatus.DETECTED)
+    db.log_transition(a1, "transcription", AssetStatus.DETECTED, AssetStatus.TRANSCRIBING)
+
+    assert db.count_logs() == 3
+    assert db.count_logs(asset_id=a1) == 2
+    assert len(db.list_logs(asset_id=a1, limit=1)) == 1
+    assert all(l["asset_id"] == a1 for l in db.list_logs(asset_id=a1))
+
+
 def test_log_transition_records_all_fields(db):
     asset_id = db.create_asset("c.mp4")
     db.log_transition(
