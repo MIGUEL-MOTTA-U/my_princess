@@ -259,4 +259,5 @@ __marimo__/
 data/
 watchfolder/
 output/
+approved/
 .venv/
