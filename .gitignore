@@ -260,4 +260,5 @@ data/
 watchfolder/
 output/
 approved/
+stuff/
 .venv/
