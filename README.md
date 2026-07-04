@@ -21,18 +21,20 @@ watchfolder/  ──▶ Watcher (polling, tamaño estable, .mp4)
 - **Orquestación**: LangGraph (`src/my_princess/graph.py`, diagrama en `docs/graph.md`)
 - **Transcripción**: faster-whisper (modelo configurable, default `base`)
 - **Audio**: ffmpeg (PATH o binario empaquetado de `imageio-ffmpeg`)
-- **Persistencia**: SQLite (`assets` + `transform_logs`); ver `DECISIONS.md`
+- **Persistencia**: MongoDB (colecciones `assets` + `transform_logs`) vía
+  Docker Compose; los tests usan `mongomock` (sin servidor). Ver `DECISIONS.md`
 - **LLM**: agnóstico al proveedor vía LiteLLM (Gemini, OpenAI, Anthropic, Ollama…)
 - **Bitácora**: `ai_notes.md` (una entrada por evento) + `transform_logs`
 
 ## Requisitos
 
 - Python 3.11+ (probado con 3.12)
+- Docker (para MongoDB vía `docker-compose.yml`)
 - Una API key del proveedor LLM elegido (Gemini por defecto: `GEMINI_API_KEY`);
   con Ollama local no se necesita key
 - En Windows: [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
   (lo requiere `ctranslate2`, el motor de faster-whisper; suele estar ya instalado)
-- Nada más: ffmpeg viene empaquetado y SQLite es parte de Python
+- Nada más: ffmpeg viene empaquetado
 
 ## Instalación
 
@@ -45,6 +47,12 @@ pip install -e ".[dev]"
 `pyproject.toml` es la fuente de verdad de las dependencias;
 `requirements.txt` es un snapshot congelado (`pip freeze`) para
 instalaciones reproducibles: `pip install -r requirements.txt`.
+
+Levanta MongoDB antes de ejecutar el pipeline:
+
+```powershell
+docker compose up -d      # Mongo 7 en localhost:27017 (volumen persistente)
+```
 
 ## Configuración
 
@@ -61,11 +69,13 @@ Las variables ya exportadas en la shell tienen prioridad sobre `.env`.
 
 | Variable | Default | Descripción |
 |---|---|---|
+| `MP_MONGO_URI` | `mongodb://localhost:27017` | URI de MongoDB |
+| `MP_MONGO_DB` | `my_princess` | Nombre de la base de datos |
 | `MP_WATCH_DIR` | `watchfolder` | Carpeta vigilada |
 | `MP_OUTPUT_DIR` | `output` | Salida estándar (revisión manual completa) |
 | `MP_APPROVED_DIR` | `approved` | Salida cuando el agente aprueba por confianza |
 | `MP_CONFIDENCE_THRESHOLD` | `0.8` | Umbral de triage: `confidence_score >= umbral` → `approved/` |
-| `MP_DB_PATH` | `data/my_princess.db` | Base SQLite |
+| `MP_WORK_DIR` | `data` | Directorio de trabajo (WAV temporales) |
 | `MP_AI_NOTES_PATH` | `ai_notes.md` | Bitácora legible |
 | `MP_POLL_INTERVAL_SECONDS` | `2` | Intervalo de polling |
 | `MP_MAX_RETRIES` | `3` | Reintentos por etapa antes de FAILED |
@@ -116,7 +126,12 @@ Copia un `.mp4` en `watchfolder/`. En pocos segundos verás:
 Para inspeccionar la base:
 
 ```powershell
-python -c "import sqlite3; [print(dict(r)) for r in sqlite3.connect('data/my_princess.db').execute('SELECT id_asset,status,title FROM assets').fetchall()]"
+# assets
+python -c "from pymongo import MongoClient; [print(a['id_asset'], a['status'], a.get('title')) for a in MongoClient()['my_princess']['assets'].find({}, {'_id':0})]"
+# transform_logs
+python -c "from pymongo import MongoClient; [print(l['stage'], l['status_from'], '->', l['status_to']) for l in MongoClient()['my_princess']['transform_logs'].find({}, {'_id':0}).sort('processing_date',1)]"
+# o con mongosh dentro del contenedor:
+docker exec my_princess_mongo mongosh my_princess --quiet --eval "db.assets.find({}, {_id:0, id_asset:1, status:1, title:1})"
 ```
 
 `python -m my_princess.main --cycles 5` ejecuta 5 ciclos de escaneo y termina.
@@ -134,7 +149,8 @@ python -c "import sqlite3; [print(dict(r)) for r in sqlite3.connect('data/my_pri
 ## Tests y cobertura
 
 La suite mockea faster-whisper y el LLM (sin llamadas reales ni descarga de
-modelos); ffmpeg sí se ejercita con un mp4 sintético generado al vuelo.
+modelos) y usa `mongomock` como base Mongo en memoria (no requiere Docker);
+ffmpeg sí se ejercita con un mp4 sintético generado al vuelo.
 
 ```powershell
 python -m pytest --cov --cov-report=term-missing
@@ -150,7 +166,7 @@ watchfolder hasta el archivo de salida.
 src/my_princess/
   config.py       # settings por variables de entorno
   models.py       # AssetStatus/AssetCategory (Enum) + contrato AssetMetadata
-  db.py           # SQLite: assets, transform_logs, log de transiciones
+  db.py           # MongoDB: assets, transform_logs, log de transiciones
   notes.py        # escritor de ai_notes.md
   watcher.py      # polling + estabilidad + SHA-256
   audio.py        # extracción de audio (ffmpeg)

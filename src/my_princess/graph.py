@@ -52,7 +52,7 @@ class Pipeline:
         self.transcriber = transcriber
         self.llm = llm
         self.settings = settings
-        self.audio_dir = settings.db_path.parent / "audio"
+        self.audio_dir = settings.work_dir / "audio"
         self.graph = self._build_graph()
 
     # -- construccion del grafo ------------------------------------------

@@ -20,7 +20,12 @@ class Settings:
     confidence_threshold: float = field(
         default_factory=lambda: float(_env("MP_CONFIDENCE_THRESHOLD", "0.8"))
     )
-    db_path: Path = field(default_factory=lambda: Path(_env("MP_DB_PATH", "data/my_princess.db")))
+    mongo_uri: str = field(
+        default_factory=lambda: _env("MP_MONGO_URI", "mongodb://localhost:27017")
+    )
+    mongo_db: str = field(default_factory=lambda: _env("MP_MONGO_DB", "my_princess"))
+    # directorio de trabajo para artefactos intermedios (WAV temporales)
+    work_dir: Path = field(default_factory=lambda: Path(_env("MP_WORK_DIR", "data")))
     ai_notes_path: Path = field(default_factory=lambda: Path(_env("MP_AI_NOTES_PATH", "ai_notes.md")))
     poll_interval_seconds: float = field(
         default_factory=lambda: float(_env("MP_POLL_INTERVAL_SECONDS", "2"))
@@ -38,4 +43,4 @@ class Settings:
         self.watch_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.approved_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.work_dir.mkdir(parents=True, exist_ok=True)

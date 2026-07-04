@@ -1,14 +1,21 @@
 # DECISIONS.md — decisiones técnicas y justificación
 
-## Persistencia: SQLite en lugar de MongoDB
-Se verificó el entorno al inicio de la implementación: **Docker no está
-disponible** en la máquina de la demo, por lo que levantar MongoDB local no
-era una opción sin agregar pasos de instalación. SQLite viene con Python,
-no requiere servicio externo y el modelo de datos (dos tablas, FK simple)
-no necesita nada documental. Los campos `tags` y `staff` se serializan como
-JSON en columnas de texto, manteniendo el esquema equivalente al propuesto.
-Migrar a MongoDB después implica reescribir solo `db.py` (la interfaz
-`Database` es el único punto de contacto).
+## Persistencia: MongoDB (migrado desde SQLite)
+La elección inicial fue SQLite porque Docker no estaba disponible en la
+máquina de la demo. Cuando Docker quedó operativo se migró a **MongoDB**
+(la opción preferida del enunciado), levantado con `docker-compose.yml`
+(imagen `mongo:7`, volumen persistente). La migración confirmó la apuesta
+de diseño original: la interfaz `Database` era el único punto de contacto,
+así que solo se reescribió `db.py` — el grafo, el watcher y los tests de
+las demás capas no cambiaron.
+- Colecciones `assets` y `transform_logs` con índices en `id_asset`
+  (único), `source_path`, `file_hash` y `asset_id`.
+- `tags`/`staff` ahora son arrays nativos (antes JSON serializado); las
+  fechas siguen siendo strings ISO-8601 para mantener el contrato.
+- Conexión configurable con `MP_MONGO_URI` / `MP_MONGO_DB`; Mongo local de
+  la demo corre sin autenticación (documentado: producción requiere auth).
+- Tests con `mongomock` (base en memoria, sin servidor): la suite corre
+  sin Docker y sigue la regla de no depender de servicios reales.
 
 ## ffmpeg: binario empaquetado (`imageio-ffmpeg`) con fallback a PATH
 ffmpeg no estaba en el PATH del entorno. En lugar de exigir instalación

@@ -36,7 +36,7 @@ def test_update_asset_serializes_json_and_enum(db):
 
 def test_update_asset_rejects_unknown_columns(db):
     asset_id = db.create_asset("a.mp4")
-    with pytest.raises(ValueError, match="Columnas desconocidas"):
+    with pytest.raises(ValueError, match="Campos desconocidos"):
         db.update_asset(asset_id, transcritp="typo")  # typo intencional
 
 

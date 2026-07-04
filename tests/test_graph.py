@@ -38,7 +38,7 @@ def settings(tmp_path):
         output_dir=tmp_path / "out",
         approved_dir=tmp_path / "approved",
         confidence_threshold=0.8,
-        db_path=tmp_path / "data" / "demo.db",
+        work_dir=tmp_path / "data",
         ai_notes_path=tmp_path / "ai_notes.md",
         max_retries=2,
     )
