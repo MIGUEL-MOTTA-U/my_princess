@@ -2,7 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+ai_notes.md
 # C extensions
 *.so
 
@@ -11,7 +11,45 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
+downloads/Necesito diseñar la forma más eficiente posible de enviar correos masivos personalizados a partir de un archivo Excel o CSV.
+
+Contexto:
+
+* Tengo una lista de clientes organizada en un archivo Excel/CSV.
+* El correo tiene una estructura genérica, pero contiene campos variables específicos para cada cliente.
+* Cada destinatario debe recibir un correo aislado, no un envío grupal.
+* El contenido debe ser muy similar entre correos, pero con datos personalizados según cada fila del archivo.
+* Es importante mantener trazabilidad completa del proceso.
+
+Objetivo:
+Quiero que propongas y/o implementes la solución más eficiente para automatizar este proceso, priorizando:
+
+1. Minimizar esfuerzo manual.
+2. Evitar errores en la personalización.
+3. Garantizar que cada correo se envíe de forma individual y segura.
+4. Registrar trazabilidad de cada envío.
+5. Permitir escalabilidad para muchos destinatarios.
+
+Instrucciones:
+
+* Evalúa primero si la solución debe hacerse con código o si existe una alternativa más eficiente.
+* Si recomiendas código, propón la mejor arquitectura posible para procesar el archivo, reemplazar variables y enviar correos individualmente.
+* Incluye validaciones para asegurar que no falten campos obligatorios.
+* Incluye manejo de errores, control de reintentos y registro de estado por destinatario.
+* La solución debe dejar evidencia de:
+
+  * quién fue contactado,
+  * cuándo se envió el correo,
+  * si fue exitoso o falló,
+  * y el motivo del fallo si aplica.
+* Si propones automatización, explica cómo integrarla con el archivo Excel/CSV y con el sistema de envío de correos.
+
+Entrega esperada:
+
+* Una propuesta clara y eficiente.
+* Si aplica, el código completo o la estructura técnica recomendada.
+* Un enfoque orientado a trazabilidad, seguridad y escalabilidad.
+
 eggs/
 .eggs/
 lib/
@@ -221,4 +259,6 @@ __marimo__/
 data/
 watchfolder/
 output/
+approved/
+stuff/
 .venv/
