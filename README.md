@@ -96,10 +96,17 @@ La API key va en la variable estándar de cada proveedor:
 `MP_LLM_PROVIDER` acepta cualquier proveedor soportado por LiteLLM
 (Groq, Mistral, Azure…), no solo los de la tabla.
 
-## Ejecutar la demo
+## Ejecución
+
+El proyecto son dos procesos independientes que comparten MongoDB y las
+carpetas de trabajo: el **pipeline** (procesa los videos del watchfolder) y
+el **servidor API** (expone todo al front por REST). Puedes correr solo el
+pipeline o ambos. Requisitos previos en los dos casos: Mongo arriba
+(`docker compose up -d`) y `.env` configurado (ver sección Configuración).
+
+### Pipeline (demo CLI)
 
 ```powershell
-# .env con GEMINI_API_KEY ya configurado (ver sección Configuración)
 python -m my_princess.main
 ```
 
@@ -136,16 +143,28 @@ docker exec my_princess_mongo mongosh my_princess --quiet --eval "db.assets.find
 
 `python -m my_princess.main --cycles 5` ejecuta 5 ciclos de escaneo y termina.
 
+### Servidor (API REST)
+
+En otra terminal, con el mismo entorno virtual activado:
+
+```powershell
+uvicorn my_princess.api.app:create_app --factory --port 8000
+```
+
+- La API queda en `http://localhost:8000/api/v1`; verifica con
+  `GET /api/v1/health` o abre el Swagger UI en
+  [`http://localhost:8000/docs`](http://localhost:8000/docs).
+- El servidor no procesa videos: sube archivos al watchfolder y consulta
+  estados/salidas. Para que los videos avancen, el pipeline debe estar
+  corriendo en paralelo (terminal 1).
+- Flags útiles de uvicorn: `--reload` (autorecarga en desarrollo) y
+  `--host 0.0.0.0` (exponerlo en la red local).
+
 ## API para el frontend
 
 La capa REST expone el pipeline a clientes de UI (carga de archivos,
-consulta de estados, trazabilidad y configuración del agente). Corre como
-proceso aparte del pipeline, compartiendo el mismo MongoDB y las carpetas:
-
-```powershell
-# terminal 1: pipeline           # terminal 2: API
-python -m my_princess.main       uvicorn my_princess.api.app:create_app --factory --port 8000
-```
+consulta de estados, trazabilidad y configuración del agente). Cómo
+arrancarla: ver **Ejecución → Servidor (API REST)**.
 
 **Documentación automática para el cliente front**: Swagger UI en
 [`http://localhost:8000/docs`](http://localhost:8000/docs) (interactiva) y
