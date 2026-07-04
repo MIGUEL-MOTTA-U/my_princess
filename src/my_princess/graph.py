@@ -302,7 +302,13 @@ class Pipeline:
         # sigue siendo humana, el triage solo prioriza la cola.
         asset = self.db.get_asset(asset_id)
         confidence = asset.get("confidence_score") or 0.0
-        threshold = self.settings.confidence_threshold
+        # el umbral es dinamico: se lee de la coleccion `config` (editable via
+        # API en caliente); la variable de entorno es solo el default inicial
+        threshold = float(
+            self.db.get_config_value(
+                "confidence_threshold", self.settings.confidence_threshold
+            )
+        )
         auto_approved = confidence >= threshold
         target_dir = self.settings.approved_dir if auto_approved else self.settings.output_dir
         decision = (

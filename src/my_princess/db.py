@@ -50,10 +50,12 @@ class Database:
         database = client[db_name]
         self._assets = database["assets"]
         self._logs = database["transform_logs"]
+        self._config = database["config"]
         self._assets.create_index("id_asset", unique=True)
         self._assets.create_index("source_path")
         self._assets.create_index("file_hash")
         self._logs.create_index("asset_id")
+        self._config.create_index("key", unique=True)
 
     def close(self) -> None:
         self._client.close()
@@ -147,3 +149,49 @@ class Database:
                 "processing_date", 1
             )
         )
+
+    # -- config dinamica -------------------------------------------------
+
+    def get_config_value(self, key: str, default: Any = None) -> Any:
+        """Configuracion runtime (editable via API sin reiniciar el pipeline)."""
+        document = self._config.find_one({"key": key})
+        return document["value"] if document else default
+
+    def set_config_value(self, key: str, value: Any) -> None:
+        self._config.update_one(
+            {"key": key},
+            {"$set": {"key": key, "value": value, "updated_at": _now()}},
+            upsert=True,
+        )
+
+    # -- consultas paginadas (API) ----------------------------------------
+
+    def list_assets(
+        self, status: str | None = None, skip: int = 0, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        query = {"status": status} if status else {}
+        return list(
+            self._assets.find(query, _NO_MONGO_ID)
+            .sort("created_at", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+
+    def count_assets(self, status: str | None = None) -> int:
+        query = {"status": status} if status else {}
+        return self._assets.count_documents(query)
+
+    def list_logs(
+        self, asset_id: str | None = None, skip: int = 0, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        query = {"asset_id": asset_id} if asset_id else {}
+        return list(
+            self._logs.find(query, _NO_MONGO_ID)
+            .sort("processing_date", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+
+    def count_logs(self, asset_id: str | None = None) -> int:
+        query = {"asset_id": asset_id} if asset_id else {}
+        return self._logs.count_documents(query)
