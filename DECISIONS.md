@@ -100,6 +100,27 @@ la aprobación final sigue siendo humana (`PENDING_VALIDATION` en ambos
 casos) y el triage solo prioriza la cola. La decisión queda auditada en
 `validation_notes`, `transform_logs` y `ai_notes.md`.
 
+## Capa REST: FastAPI con MVC + repository sobre lo existente
+Para exponer el pipeline a un front se agregó `my_princess.api` sin tocar
+el núcleo: `Database` sigue siendo el único punto de acceso a Mongo (solo
+ganó consultas paginadas y el almacén de config), y encima van
+**repositories** (interfaz de dominio estrecha), **services** (paginación,
+reglas, archivos) y **controllers** (routers FastAPI: verbos, códigos,
+validación). FastAPI se eligió por la documentación OpenAPI automática
+(`/docs`) — el requisito de "documentado para un cliente front" sale
+gratis — y porque valida entrada/salida con los mismos modelos pydantic
+del proyecto. API y pipeline corren como procesos separados compartiendo
+MongoDB y carpetas; la trazabilidad para el front sale de `transform_logs`
+vía endpoints (ai_notes.md queda como bitácora interna).
+
+## Umbral de confianza dinámico: colección `config` en Mongo
+`MP_CONFIDENCE_THRESHOLD` pasó a ser solo el default inicial: el valor
+operativo vive en la colección `config` (clave `confidence_threshold`) y
+se cambia con `PUT /api/v1/config` sin reiniciar nada — el grafo lo lee
+por asset en el nodo `write_output`. Se guardó en Mongo (y no en memoria
+del proceso API) porque pipeline y API son procesos distintos: la base es
+el único estado compartido entre ambos.
+
 ## Sin infraestructura extra
 Sin colas, sin microservicios, sin contenedores: un proceso, un loop de
 polling, una base SQLite. Es lo que la demo necesita y lo más fácil de
