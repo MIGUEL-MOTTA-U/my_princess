@@ -36,7 +36,9 @@ def settings(tmp_path):
     return Settings(
         watch_dir=tmp_path / "watch",
         output_dir=tmp_path / "out",
-        db_path=tmp_path / "data" / "demo.db",
+        approved_dir=tmp_path / "approved",
+        confidence_threshold=0.8,
+        work_dir=tmp_path / "data",
         ai_notes_path=tmp_path / "ai_notes.md",
         max_retries=2,
     )
@@ -83,11 +85,13 @@ def test_happy_path_reaches_pending_validation(mock_extract, db, settings, trans
     assert ("TRANSCRIBED", "STRUCTURING") in transitions
     assert ("STRUCTURING", "PENDING_VALIDATION") in transitions
 
-    # archivo de salida con transcripcion + metadata
-    out_file = settings.output_dir / f"{asset_id}.json"
+    # confidence 0.9 >= umbral 0.8: el agente enruta la salida a approved/
+    out_file = settings.approved_dir / f"{asset_id}.json"
     payload = json.loads(out_file.read_text(encoding="utf-8"))
     assert payload["transcript"] == "hola desde el noticiero"
     assert payload["metadata"]["tags"] == VALID_METADATA["tags"]
+    assert not (settings.output_dir / f"{asset_id}.json").exists()
+    assert "APPROVED" in asset["validation_notes"]
 
 
 @patch("my_princess.graph.extract_audio", return_value="audio.wav")
@@ -163,6 +167,32 @@ def test_llm_transport_error_then_success(mock_extract, db, settings, transcribe
 
     final = pipeline.process_asset(asset_id)
     assert final == AssetStatus.PENDING_VALIDATION.value
+
+
+@patch("my_princess.graph.extract_audio", return_value="audio.wav")
+def test_low_confidence_routes_to_output_dir(mock_extract, db, settings, transcriber_ok, tmp_path):
+    low = dict(VALID_METADATA, confidence_score=0.5)  # 0.5 < umbral 0.8
+    pipeline = build_pipeline(db, settings, transcriber_ok, FakeLLM([json.dumps(low)]))
+    asset_id = make_asset(db, tmp_path)
+
+    final = pipeline.process_asset(asset_id)
+
+    assert final == AssetStatus.PENDING_VALIDATION.value
+    assert (settings.output_dir / f"{asset_id}.json").exists()
+    assert not (settings.approved_dir / f"{asset_id}.json").exists()
+    assert "revision estandar" in db.get_asset(asset_id)["validation_notes"]
+
+
+@patch("my_princess.graph.extract_audio", return_value="audio.wav")
+def test_confidence_threshold_is_configurable(mock_extract, db, settings, transcriber_ok, tmp_path):
+    settings.confidence_threshold = 0.95  # el 0.9 del payload ya no alcanza
+    pipeline = build_pipeline(db, settings, transcriber_ok, FakeLLM([json.dumps(VALID_METADATA)]))
+    asset_id = make_asset(db, tmp_path)
+
+    pipeline.process_asset(asset_id)
+
+    assert (settings.output_dir / f"{asset_id}.json").exists()
+    assert not (settings.approved_dir / f"{asset_id}.json").exists()
 
 
 def test_missing_source_file_fails_cleanly(db, settings, transcriber_ok, tmp_path):

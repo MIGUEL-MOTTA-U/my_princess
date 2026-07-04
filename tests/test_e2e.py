@@ -9,6 +9,7 @@ import json
 import subprocess
 from unittest.mock import patch
 
+import mongomock
 import pytest
 
 from my_princess.audio import resolve_ffmpeg
@@ -55,7 +56,8 @@ def test_end_to_end_pipeline(tmp_path, synthetic_mp4):
     settings = Settings(
         watch_dir=tmp_path / "watch",
         output_dir=tmp_path / "out",
-        db_path=tmp_path / "data" / "demo.db",
+        approved_dir=tmp_path / "approved",
+        work_dir=tmp_path / "data",
         ai_notes_path=tmp_path / "ai_notes.md",
         poll_interval_seconds=0.01,
         max_retries=2,
@@ -64,14 +66,16 @@ def test_end_to_end_pipeline(tmp_path, synthetic_mp4):
     fake_result = TranscriptionResult(
         text="Tono de prueba de emisión.", duration_minutes=0.017, language="es"
     )
-    # whisper mockeado (sin modelos reales); ffmpeg y todo lo demás es real
+    # Mongo en memoria (mongomock) compartiendo cliente entre el run y la
+    # inspección; whisper mockeado, ffmpeg y todo lo demás es real
+    mongo_client = mongomock.MongoClient()
     with patch(
         "my_princess.transcriber.Transcriber.transcribe", return_value=fake_result
     ):
         # 3 ciclos: observar tamaño, registrar+procesar, ciclo vacío
-        run(settings, cycles=3, llm=FakeLLM())
+        run(settings, cycles=3, llm=FakeLLM(), db=Database(client=mongo_client))
 
-    db = Database(settings.db_path)
+    db = Database(client=mongo_client)
     try:
         asset = db.find_asset_by_source_path(str(synthetic_mp4.resolve()))
         assert asset is not None, "el asset debió registrarse desde el watchfolder"

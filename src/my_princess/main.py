@@ -18,10 +18,13 @@ from .transcriber import Transcriber
 from .watcher import Watcher
 
 
-def build_components(settings: Settings, llm: LLMClient | None = None):
-    """Construye las piezas del pipeline. `llm` es inyectable para tests."""
+def build_components(
+    settings: Settings, llm: LLMClient | None = None, db: Database | None = None
+):
+    """Construye las piezas del pipeline. `llm` y `db` son inyectables para tests."""
     settings.ensure_dirs()
-    db = Database(settings.db_path)
+    if db is None:
+        db = Database(settings.mongo_uri, settings.mongo_db)
     notes = AINotes(settings.ai_notes_path)
     watcher = Watcher(settings.watch_dir, db, notes)
     if llm is None:
@@ -33,8 +36,13 @@ def build_components(settings: Settings, llm: LLMClient | None = None):
     return db, notes, watcher, pipeline
 
 
-def run(settings: Settings, cycles: int | None = None, llm: LLMClient | None = None) -> None:
-    db, notes, watcher, pipeline = build_components(settings, llm=llm)
+def run(
+    settings: Settings,
+    cycles: int | None = None,
+    llm: LLMClient | None = None,
+    db: Database | None = None,
+) -> None:
+    db, notes, watcher, pipeline = build_components(settings, llm=llm, db=db)
     notes.log(
         None, "startup",
         f"Pipeline iniciado. watchfolder=`{settings.watch_dir}` "
