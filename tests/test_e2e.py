@@ -55,6 +55,7 @@ def test_end_to_end_pipeline(tmp_path, synthetic_mp4):
     settings = Settings(
         watch_dir=tmp_path / "watch",
         output_dir=tmp_path / "out",
+        approved_dir=tmp_path / "approved",
         db_path=tmp_path / "data" / "demo.db",
         ai_notes_path=tmp_path / "ai_notes.md",
         poll_interval_seconds=0.01,

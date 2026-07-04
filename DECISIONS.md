@@ -84,6 +84,15 @@ La carga real del modelo whisper y la llamada real a Anthropic quedan
 excluidas de cobertura (`pragma: no cover`), son las únicas líneas no
 ejercitadas. Cobertura actual: **98%**.
 
+## Triage automático por confianza: carpeta, no estado
+El agente decide la ruta de salida según `confidence_score` contra
+`MP_CONFIDENCE_THRESHOLD` (default 0.8): a `MP_APPROVED_DIR` si lo supera,
+a `MP_OUTPUT_DIR` si no. Se decidió **no** introducir un estado nuevo
+(p. ej. `AUTO_APPROVED`) para no alterar la máquina de estados existente:
+la aprobación final sigue siendo humana (`PENDING_VALIDATION` en ambos
+casos) y el triage solo prioriza la cola. La decisión queda auditada en
+`validation_notes`, `transform_logs` y `ai_notes.md`.
+
 ## Sin infraestructura extra
 Sin colas, sin microservicios, sin contenedores: un proceso, un loop de
 polling, una base SQLite. Es lo que la demo necesita y lo más fácil de

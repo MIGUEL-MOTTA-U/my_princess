@@ -14,6 +14,12 @@ def _env(name: str, default: str) -> str:
 class Settings:
     watch_dir: Path = field(default_factory=lambda: Path(_env("MP_WATCH_DIR", "watchfolder")))
     output_dir: Path = field(default_factory=lambda: Path(_env("MP_OUTPUT_DIR", "output")))
+    approved_dir: Path = field(default_factory=lambda: Path(_env("MP_APPROVED_DIR", "approved")))
+    # umbral de confianza para el triage automatico del agente: con
+    # confidence_score >= umbral la salida va a approved_dir
+    confidence_threshold: float = field(
+        default_factory=lambda: float(_env("MP_CONFIDENCE_THRESHOLD", "0.8"))
+    )
     db_path: Path = field(default_factory=lambda: Path(_env("MP_DB_PATH", "data/my_princess.db")))
     ai_notes_path: Path = field(default_factory=lambda: Path(_env("MP_AI_NOTES_PATH", "ai_notes.md")))
     poll_interval_seconds: float = field(
@@ -31,4 +37,5 @@ class Settings:
     def ensure_dirs(self) -> None:
         self.watch_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.approved_dir.mkdir(parents=True, exist_ok=True)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

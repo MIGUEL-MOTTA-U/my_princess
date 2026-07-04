@@ -295,16 +295,35 @@ class Pipeline:
     def _write_output(self, state: PipelineState) -> PipelineState:
         asset_id = state["asset_id"]
         started = time.monotonic()
-        self.db.update_asset(asset_id, status=AssetStatus.PENDING_VALIDATION)
+
+        # decision del agente: triage por confianza. Con confidence_score >=
+        # umbral la salida va a approved_dir; si no, a output_dir como siempre.
+        # El estado es PENDING_VALIDATION en ambos casos: la aprobacion final
+        # sigue siendo humana, el triage solo prioriza la cola.
         asset = self.db.get_asset(asset_id)
-        path = write_output_file(asset, self.settings.output_dir)
+        confidence = asset.get("confidence_score") or 0.0
+        threshold = self.settings.confidence_threshold
+        auto_approved = confidence >= threshold
+        target_dir = self.settings.approved_dir if auto_approved else self.settings.output_dir
+        decision = (
+            f"triage automatico: {'APPROVED' if auto_approved else 'revision estandar'} "
+            f"(confidence {confidence:.2f} {'>=' if auto_approved else '<'} umbral {threshold:.2f})"
+        )
+
+        self.db.update_asset(
+            asset_id,
+            status=AssetStatus.PENDING_VALIDATION,
+            validation_notes=decision,
+        )
+        asset = self.db.get_asset(asset_id)
+        path = write_output_file(asset, target_dir)
         self.db.log_transition(
             asset_id, "output", AssetStatus.STRUCTURING, AssetStatus.PENDING_VALIDATION,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=_elapsed_ms(started), error_detail=None,
         )
         self.notes.log(
             asset_id, "output",
-            f"Archivo de salida generado: `{path}`. Listo para validacion humana.",
+            f"{decision}. Archivo de salida: `{path}`. Listo para validacion humana.",
             transition="STRUCTURING → PENDING_VALIDATION",
         )
         return {"final_status": AssetStatus.PENDING_VALIDATION.value}

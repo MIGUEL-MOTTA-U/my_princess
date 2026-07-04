@@ -62,7 +62,9 @@ Las variables ya exportadas en la shell tienen prioridad sobre `.env`.
 | Variable | Default | Descripción |
 |---|---|---|
 | `MP_WATCH_DIR` | `watchfolder` | Carpeta vigilada |
-| `MP_OUTPUT_DIR` | `output` | Carpeta de archivos de salida |
+| `MP_OUTPUT_DIR` | `output` | Salida estándar (revisión manual completa) |
+| `MP_APPROVED_DIR` | `approved` | Salida cuando el agente aprueba por confianza |
+| `MP_CONFIDENCE_THRESHOLD` | `0.8` | Umbral de triage: `confidence_score >= umbral` → `approved/` |
 | `MP_DB_PATH` | `data/my_princess.db` | Base SQLite |
 | `MP_AI_NOTES_PATH` | `ai_notes.md` | Bitácora legible |
 | `MP_POLL_INTERVAL_SECONDS` | `2` | Intervalo de polling |
@@ -103,7 +105,12 @@ Copia un `.mp4` en `watchfolder/`. En pocos segundos verás:
 1. El asset en la base con estado `DETECTED` (y su transición en `transform_logs`).
 2. El pipeline avanzando hasta `PENDING_VALIDATION` (o `FAILED`/`NEEDS_REVIEW`
    si algo falla, sin tumbar el proceso).
-3. `output/{id_asset}.json` con transcripción completa + metadata validada.
+3. El archivo `{id_asset}.json` con transcripción completa + metadata validada,
+   enrutado por el **triage del agente** según la confianza de la metadata:
+   - `confidence_score >= MP_CONFIDENCE_THRESHOLD` → `approved/` (cola priorizada)
+   - por debajo del umbral → `output/` (revisión manual completa)
+   En ambos casos el estado es `PENDING_VALIDATION` (la aprobación final es
+   humana) y la decisión queda auditada en `validation_notes` y `ai_notes.md`.
 4. `ai_notes.md` con el historial legible.
 
 Para inspeccionar la base:
